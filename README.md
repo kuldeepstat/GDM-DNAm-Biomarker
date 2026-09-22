@@ -79,7 +79,11 @@ GDM-DNAm-Biomarker/
 │
 ├── results/
 │   └── README.md
-
+│
+├── docs/
+│
+└── README.md
+```
 ## R Scripts
 
 The analysis scripts are located in the `R/` directory and are numbered according to the sequence of the analytical workflow.
@@ -190,8 +194,4 @@ Citation information for the associated manuscript will be added following publi
 ## Contact
 
 For questions regarding the analysis or code, please contact the corresponding study authors.
-│
-├── docs/
-│
-└── README.md
-```
+
