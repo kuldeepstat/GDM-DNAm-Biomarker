@@ -140,7 +140,6 @@ Relevant result files will be deposited separately,and links and file descriptio
 
 **Results repository/DOI:** To be added.
 
-## Software
 
 ## Software and Dependencies
 
