@@ -120,27 +120,34 @@ These CpGs were subsequently evaluated in the external validation cohorts.
 
 ## Data Availability
 
-The datasets required to reproduce the analyses will be made available separately. Because some of the methylation datasets and intermediate analysis objects are too large for standard GitHub storage, large data files will be deposited in an appropriate research data repository.
+The datasets required to reproduce the analyses will be made available separately. Because some of the methylation datasets
+and intermediate analysis objects are too large for standard GitHub storage, large data files will be deposited in an appropriate
+research data repository.
 
-The corresponding repository links, file descriptions, and instructions for reproducing the analysis will be added to the `data/README.md` file.
+The corresponding repository links, file descriptions, and instructions for reproducing the analysis will be added to the
+`data/README.md` file.
 
 **Data repository/DOI:** To be added.
 
 ## Results
 
-Large intermediate and final analysis outputs are not stored directly in this GitHub repository. Relevant result files will be deposited separately, and links and file descriptions will be provided in `results/README.md`.
+Large intermediate and final analysis outputs are not stored directly in this GitHub repository.
+Relevant result files will be deposited separately,and links and file descriptions will be provided in `results/README.md`.
 
 **Results repository/DOI:** To be added.
 
 ## Software
 
-The analyses were conducted primarily in R. Major packages used across the workflow include packages for DNA methylation preprocessing, EWAS, feature selection, machine learning, ROC analysis, and visualization.
+The analyses were conducted primarily in R. Major packages used across the workflow include packages for DNA methylation
+preprocessing, EWAS, feature selection, machine learning, ROC analysis, and visualization.
 
-Package-specific dependencies are loaded within the corresponding analysis scripts. Detailed software and package-version information will be added to the repository to facilitate reproducibility.
+Package-specific dependencies are loaded within the corresponding analysis scripts. Detailed software and package-version
+information will be added to the repository to facilitate reproducibility.
 
 ## Reproducibility
 
-The scripts should be executed sequentially where applicable, as outputs generated at earlier stages are used as inputs to subsequent analyses.
+The scripts should be executed sequentially where applicable, as outputs generated at earlier stages are used as inputs
+to subsequent analyses.
 
 The general workflow is:
 
