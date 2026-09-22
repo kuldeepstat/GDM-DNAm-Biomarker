@@ -142,11 +142,14 @@ Relevant result files will be deposited separately,and links and file descriptio
 
 ## Software
 
-The analyses were conducted primarily in R. Major packages used across the workflow include packages for DNA methylation
-preprocessing, EWAS, feature selection, machine learning, ROC analysis, and visualization.
+## Software and Dependencies
 
-Package-specific dependencies are loaded within the corresponding analysis scripts. Detailed software and package-version
-information will be added to the repository to facilitate reproducibility.
+All analyses were conducted in R. The workflow uses R packages for DNA methylation preprocessing and quality control, 
+missing-value imputation, epigenome-wide association analysis (EWAS), feature selection, machine-learning model development, 
+performance evaluation, ROC analysis, and visualization.
+
+The required packages are specified within the corresponding analysis scripts. To facilitate computational reproducibility, 
+the R version, package versions, and session information used for the analyses will also be provided in this repository.
 
 ## Reproducibility
 
