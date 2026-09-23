@@ -1,91 +1,136 @@
-# ==============================================================================
+################################################################################
 # 04_feature_selection.R
 #
-# Purpose:
-# Perform feature selection on the 527 CpGs identified through EWAS using
-# three approaches:
+# Feature selection of EWAS-identified CpGs
 #
-#   1. Random Forest (RF)
-#   2. LASSO
+# Methods:
+#   1. Random Forest feature importance
+#   2. LASSO regression
 #   3. Random Forest Recursive Feature Elimination (RF-RFE)
 #
 # Input:
-# d527.Rdata
-#   - 258 samples
-#   - 527 EWAS-selected CpGs
-#   - Binary outcome variable Gr (0 = Control, 1 = GDM)
+#   527 CpGs identified from the EWAS
 #
 # Output:
-# Data.xlsx containing three worksheets:
+#   RF-selected CpGs    : 40
+#   LASSO-selected CpGs : 21
+#   RF-RFE-selected CpGs: 40
 #
-#   DataRF : 40 CpGs selected using Random Forest + Gr
-#   DataLS : 21 CpGs selected using LASSO + Gr
-#   DataBC : 40 CpGs selected using RF-RFE + Gr
-#
-# ==============================================================================
+# This script retains the analytical workflow used in the study.
+################################################################################
 
 
 # ==============================================================================
-# 1. Load required packages
+# Packages
 # ==============================================================================
 
+library(ggplot2)
+library(rio)
+library(tidyverse)
+
+options(digits = 4)
+options(dplyr.print_min = Inf)
+options(scipen = 999)  # turn off scientific notations
+
+library(gtsummary)
+library(gt)
+library(multtest)
 library(caret)
 library(randomForest)
-library(glmnet)
-library(dplyr)
-library(writexl)
+library(glmnet) # for lasso
+library(gridExtra)
 
 
 # ==============================================================================
-# 2. Load EWAS-selected dataset
+# Data set
 # ==============================================================================
 
-load("data/d527.Rdata")
+# First trimester:
+# Shortlisted CpGs (527 in Early Trimester; n = 258;
+# outcome variable: GDM status, 0: No GDM; 1: GDM)
 
-# Convert outcome to factor
-d527$Gr <- as.factor(d527$Gr)
+# importing the first trimester data
 
-# Check dataset
-dim(d527)
-table(d527$Gr)
-
-
-# ==============================================================================
-# 3. Prepare predictors and outcome
-# ==============================================================================
-
-# CpG predictors
-x <- d527[, colnames(d527) != "Gr"]
-
-# GDM outcome
-y <- d527$Gr
+first_cpg <- read.table(
+  'DATASET_FIRSTTRIMESTER527.txt',
+  header = T,
+  sep = ' ',
+  row.names = 1
+)
 
 
 # ==============================================================================
-# 4. RANDOM FOREST FEATURE SELECTION
+# Modify the dataset
 # ==============================================================================
 
-# Define repeated cross-validation
+# change the default colname
+first <- first_cpg |> rename(SampleID = 'X.1')
+# glimpse(first[, c(1, 525:528)])
+
+# convert the response variable to factor
+first <- first |> mutate_at(c('Gr'), as.factor)
+
+
+# ==============================================================================
+# Select only the numbers from sample ID
+# ==============================================================================
+
+first <- first |>
+  mutate(Sample_ID = str_extract(SampleID, "\\d{5}")) |>
+  mutate(Sample_ID = as.numeric(Sample_ID)) |>
+  select(SampleID, Sample_ID, everything())
+
+
+# ==============================================================================
+# Prepare data matrix of variables and response
+# ==============================================================================
+
+# Prepare datasets for glmnet
+# get the matrix of predictors and a response variable in both datasets
+
+x_first <- first |> select(-c(SampleID, Samp, Gr))
+y_first <- first |> select(Gr)
+
+
+# ==============================================================================
+# Embedded Feature Selection Methods: RF and LASSO
+# ==============================================================================
+
+# Embedded methods perform feature selection during the model training process.
+# Regularized models like Lasso and Random Forest can be used for this purpose.
+
+
+# ==============================================================================
+# 1. Random Forest
+# ==============================================================================
+
+set.seed(453) # ??
+
+# Define a control function for cross-validation
+
 cv_control <- trainControl(
   method = "repeatedcv",
   number = 10,
   repeats = 5
 )
 
-# Train Random Forest model
+
+# Train Random Forest model using caret on the first trimester before filtering
+
 set.seed(1623)
 
 rf_first <- train(
-  x = x,
-  y = y,
+  Gr ~ .,
+  data = first,
   method = "rf",
   trControl = cv_control,
   importance = TRUE
 )
 
-# Extract variable importance
-impo_df <- varImp(rf_first)
 
+# Extract cpgs importance
+
+impo_df <- varImp(rf_first)
 impo_scores <- impo_df$importance
 
 impo_scores <- data.frame(
@@ -93,68 +138,118 @@ impo_scores <- data.frame(
   Importance = impo_scores[, 1]
 )
 
-# Rank CpGs according to variable importance
+
+# Sort by importance
+
 impo_scores <- impo_scores[
-  order(impo_scores$Importance, decreasing = TRUE),
+  order(
+    impo_scores$Importance,
+    decreasing = TRUE
+  ),
 ]
 
-# Select top 40 CpGs
-rf_selected_cpgs <- impo_scores$CpG[1:40]
 
-# Display selected CpGs
-rf_selected_cpgs
+# Select top 40 cpgs
 
-# Check number of selected CpGs
-length(rf_selected_cpgs)
+top_cpgs <- impo_scores$CpG[1:40]
+
+
+# top 40 cpgs selected using RF before filtering
+
+rf_selected_cpgs <- c(
+  "cg17967426", "cg24745753", "cg25425078",
+  "cg07661849", "cg11001216", "cg11037466",
+  "cg10139015", "cg22529952", "cg24489237",
+  "cg07919162", "cg04539775", "cg09217522",
+  "cg11021810", "cg05725489", "cg13653316",
+  "cg03940688", "cg14730811", "cg19502700",
+  "cg10685380", "cg26333513", "cg27104437",
+  "cg10509965", "cg22064129", "cg10591475",
+  "cg23507676", "cg08173730", "cg04391685",
+  "cg25117809", "cg00078968", "cg08872579",
+  "cg04985016", "cg09597829", "cg18153061",
+  "cg09518293", "cg10413550", "cg25770783",
+  "cg02489379", "cg04900672", "cg16311883",
+  "cg07939646"
+)
 
 
 # ==============================================================================
-# 5. LASSO FEATURE SELECTION
+# 2. LASSO
 # ==============================================================================
 
-# Convert predictors to matrix for glmnet
-x_lasso <- as.matrix(x)
+# Applying Lasso (L1 regularization) using the glmnet package to select CpGs
+# where the coefficients are non-zero.
+#
+# The Lasso method tends to select one variable from a group of highly
+# correlated variables and shrink the others to exactly zero, effectively
+# performing variable selection. This helps in reducing multicollinearity
+# because it results in a sparse model where only one of the correlated
+# variables remains.
 
-# Binary outcome
-y_lasso <- as.factor(y)
 
-# Fit cross-validated LASSO model
+# Prepare data for glmnet before filtering
+
+x <- as.matrix(
+  x_first |> select(-c(Sample_ID, SampleID))
+)
+
+y <- as.factor(unlist(y_first))
+
+
+# Fit LASSO model
+
 set.seed(453)
 
 lasso_first <- cv.glmnet(
-  x_lasso,
-  y_lasso,
+  x,
+  y,
   alpha = 1,
   family = "binomial"
 )
 
-# Extract variables with non-zero coefficients at lambda.min
-selected_cpg_lasso <- rownames(
-  coef(lasso_first, s = "lambda.min")
-)[
-  which(
-    coef(lasso_first, s = "lambda.min") != 0
-  )
-]
 
-# Remove intercept from the selected variables
-lasso_selected_cpgs <- setdiff(
-  selected_cpg_lasso,
-  "(Intercept)"
+# Select non-zero coefficients
+
+selected_cpg_lasso <-
+  rownames(
+    coef(
+      lasso_first,
+      s = "lambda.min"
+    )
+  )[
+    which(
+      coef(
+        lasso_first,
+        s = "lambda.min"
+      ) != 0
+    )
+  ]
+
+selected_cpg_lasso <- selected_cpg_lasso[-1]
+
+
+# cpgs selected before removing correlated cpgs using lasso
+
+lasso_selected_cpgs <- c(
+  "cg16311883", "cg11000420", "cg10509965",
+  "cg19749898", "cg07919162", "cg15738154",
+  "cg11037466", "cg15980170", "cg16098718",
+  "cg22454440", "cg11001216", "cg25425078",
+  "cg16269199", "cg01400712", "cg17967426",
+  "cg06821582", "cg03258272", "cg00542351",
+  "cg14336654", "cg00078968", "cg09387867"
 )
 
-# Display selected CpGs
-lasso_selected_cpgs
-
-# Check number of selected CpGs
-length(lasso_selected_cpgs)
-
 
 # ==============================================================================
-# 6. RF-RFE / BACKWARD FEATURE SELECTION
+# 3. Recursive Feature Elimination (RFE) (aka Backwards Selection)
 # ==============================================================================
 
-# Define repeated cross-validation for recursive feature elimination
+set.seed(8798)
+
+# Define the control using random forest and cross-validation
+
 rfe_control <- rfeControl(
   functions = rfFuncs,
   method = "repeatedcv",
@@ -162,143 +257,66 @@ rfe_control <- rfeControl(
   repeats = 5
 )
 
-# Candidate subset sizes evaluated
-sizes <- seq(10, 520, 30)
 
-# Perform recursive feature elimination
+# Perform RFE
+
 set.seed(183)
 
+# sizes: an integer vector for the specific subset sizes that should be tested
+# (which need not to include ncol(x))
+
+sizes = seq(10, 520, 30)
+
 rfe_first <- rfe(
-  x = x,
-  y = y,
+  x,
+  y,
   sizes = sizes,
   rfeControl = rfe_control
 )
 
-# Extract variable importance
-impo_rfe <- varImp(rfe_first)
 
-impo_rfe_scores <- data.frame(
-  CpG = rownames(impo_rfe),
-  Importance = impo_rfe[, 1]
+# Print the results
+
+print(rfe_first)
+print(predictors(rfe_first))
+plot(rfe_first, type = c("g", "o"))
+
+rfe_first$optsize  # number of CpG with max accuracy
+
+
+# Selected CpGs from RFE
+
+rfe_selected_cpgs <- c(
+  "cg24745753", "cg25425078", "cg17967426",
+  "cg07661849", "cg10139015", "cg09217522",
+  "cg07919162", "cg26333513", "cg24489237",
+  "cg05725489", "cg03940688", "cg10591475",
+  "cg11021810", "cg13653316", "cg08872579",
+  "cg04539775", "cg00078968", "cg09518293",
+  "cg11037466", "cg14730811", "cg22529952",
+  "cg11001216", "cg07939646", "cg10509965",
+  "cg04985016", "cg15980170", "cg22797968",
+  "cg10302336", "cg27104437", "cg26534993",
+  "cg16311883", "cg13426133", "cg23507676",
+  "cg16052686", "cg15149117", "cg06515734",
+  "cg24652415", "cg13208845", "cg07159286",
+  "cg04227758"
 )
 
-# Rank CpGs according to variable importance
-impo_rfe_scores <- impo_rfe_scores[
-  order(impo_rfe_scores$Importance, decreasing = TRUE),
-]
 
-# Select top 40 CpGs
-rfe_selected_cpgs <- impo_rfe_scores$CpG[1:40]
-
-# Display selected CpGs
-rfe_selected_cpgs
-
-# Check number of selected CpGs
-length(rfe_selected_cpgs)
-
-
-# ==============================================================================
-# 7. Verify selected CpGs
-# ==============================================================================
-
-# Confirm that all selected CpGs are present in the original
-# 527-CpG EWAS dataset
-
-all(rf_selected_cpgs %in% colnames(d527))
-
-all(lasso_selected_cpgs %in% colnames(d527))
-
-all(rfe_selected_cpgs %in% colnames(d527))
-
-
-# ==============================================================================
-# 8. Create the three feature-selected datasets
-# ==============================================================================
-
+################################################################################
+# Feature Selection Workflow
+#
 # Random Forest:
-# 40 selected CpGs + outcome
-DataRF <- d527[
-  ,
-  c(rf_selected_cpgs, "Gr"),
-  drop = FALSE
-]
-
-
+# We used 10-fold cross-validation repeated 5 times. CpGs were ranked by
+# importance and the top 40 CpGs were selected.
+#
 # LASSO:
-# 21 selected CpGs + outcome
-DataLS <- d527[
-  ,
-  c(lasso_selected_cpgs, "Gr"),
-  drop = FALSE
-]
-
-
-# RF-RFE / backward selection:
-# 40 selected CpGs + outcome
-DataBC <- d527[
-  ,
-  c(rfe_selected_cpgs, "Gr"),
-  drop = FALSE
-]
-
-
-# ==============================================================================
-# 9. Check final datasets
-# ==============================================================================
-
-# Dimensions
-dim(DataRF)
-dim(DataLS)
-dim(DataBC)
-
-# Number of selected CpGs
-ncol(DataRF) - 1
-ncol(DataLS) - 1
-ncol(DataBC) - 1
-
-# Check outcome distributions
-table(DataRF$Gr)
-table(DataLS$Gr)
-table(DataBC$Gr)
-
-
-# ==============================================================================
-# 10. Export feature-selected datasets
-# ==============================================================================
-
-# Create a single Excel workbook containing the three feature-selected
-# datasets as separate worksheets.
+# LASSO was used for feature selection and selected 21 CpGs with non-zero
+# coefficients.
 #
-# Original analysis file:
-# E:/FilteredVariableAnalysis/Data.xlsx
-#
-# A relative path is used here for repository reproducibility.
-
-write_xlsx(
-  list(
-    DataRF = DataRF,
-    DataLS = DataLS,
-    DataBC = DataBC
-  ),
-  path = "data/Data.xlsx"
-)
-
-
-# ==============================================================================
-# 11. Final checks
-# ==============================================================================
-
-# Expected:
-# DataRF = 258 samples x 41 columns (40 CpGs + Gr)
-# DataLS = 258 samples x 22 columns (21 CpGs + Gr)
-# DataBC = 258 samples x 41 columns (40 CpGs + Gr)
-
-dim(DataRF)
-dim(DataLS)
-dim(DataBC)
-
-# Selected CpG lists
-rf_selected_cpgs
-lasso_selected_cpgs
-rfe_selected_cpgs
+# RFE:
+# Recursive Feature Elimination (RFE) was performed using 10-fold
+# cross-validation repeated 5 times. The highest cross-validated accuracy was
+# achieved with 40 CpGs. Therefore, the top 40 CpGs were selected.
+################################################################################
